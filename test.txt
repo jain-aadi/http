@@ -1,0 +1,3 @@
+Hello there!
+I am reading this file by using golang language.
+Bye buddy...
