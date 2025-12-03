@@ -72,6 +72,10 @@ func main() {
 		r.Headers.ForEach(func(k, v string) {
 			fmt.Printf("- %s: %s\n", k, v)
 		})
+
+		fmt.Println("Body:")
+		fmt.Printf("%s\n", r.Body)
+
 	}
 
 }

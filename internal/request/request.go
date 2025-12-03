@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"http_server/internal/headers"
 	"io"
+	"strconv"
 	"strings"
 )
 
@@ -13,6 +14,7 @@ const (
 	StateInit    parserState = "init"
 	StateDone    parserState = "done"
 	StateHeaders parserState = "headers"
+	StateBody    parserState = "body"
 )
 
 type RequestLine struct {
@@ -25,6 +27,7 @@ type Request struct {
 	RequestLine RequestLine
 	State       parserState
 	Headers     *headers.Headers
+	Body        string
 }
 
 func (r *Request) parse(data []byte) (int, error) {
@@ -61,6 +64,28 @@ outer:
 
 			read += n
 			if done {
+				if getInt(r.Headers, "Content-Length") > 0 {
+					r.State = StateBody
+				} else {
+					r.State = StateDone
+				}
+
+			}
+
+		case StateBody:
+			contentLength := getInt(r.Headers, "Content-Length")
+			if len(data[read:]) == 0 {
+				break outer
+			}
+			if contentLength == 0 {
+				panic("Chunk not implemented!")
+			}
+
+			remainingBody := min(contentLength-len(r.Body), len(data[read:]))
+			r.Body += string(data[read : read+remainingBody])
+			read += remainingBody
+
+			if len(r.Body) == contentLength {
 				r.State = StateDone
 			}
 
@@ -80,6 +105,7 @@ func newRequest() *Request {
 	return &Request{
 		State:   StateInit,
 		Headers: headers.NewHeaders(),
+		Body:    "",
 	}
 }
 
@@ -140,4 +166,19 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 
 	return request, nil
 
+}
+
+func getInt(header *headers.Headers, name string) int {
+	valStr := header.Get(name)
+	if valStr == "" {
+		return 0
+	}
+
+	val, err := strconv.Atoi(valStr)
+
+	if err != nil {
+		return 0
+	}
+
+	return val
 }
