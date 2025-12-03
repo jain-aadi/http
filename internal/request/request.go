@@ -2,6 +2,7 @@ package request
 
 import (
 	"fmt"
+	"http_server/internal/headers"
 	"io"
 	"strings"
 )
@@ -9,8 +10,9 @@ import (
 type parserState string
 
 const (
-	StateInit parserState = "init"
-	StateDone parserState = "done"
+	StateInit    parserState = "init"
+	StateDone    parserState = "done"
+	StateHeaders parserState = "headers"
 )
 
 type RequestLine struct {
@@ -22,6 +24,7 @@ type RequestLine struct {
 type Request struct {
 	RequestLine RequestLine
 	State       parserState
+	Headers     *headers.Headers
 }
 
 func (r *Request) parse(data []byte) (int, error) {
@@ -42,10 +45,27 @@ outer:
 
 			r.RequestLine = *rl
 			read += len([]byte(rest))
-			r.State = StateDone
+			r.State = StateHeaders
 
 		case StateDone:
 			break outer
+
+		case StateHeaders:
+			n, done, err := r.Headers.Parse(data[read:])
+			if err != nil {
+				return 0, err
+			}
+			if n == 0 {
+				break outer
+			}
+
+			read += n
+			if done {
+				r.State = StateDone
+			}
+
+		default:
+			panic("unknown state, programming error")
 		}
 	}
 
@@ -58,7 +78,8 @@ func (r *Request) isDone() bool {
 
 func newRequest() *Request {
 	return &Request{
-		State: StateInit,
+		State:   StateInit,
+		Headers: headers.NewHeaders(),
 	}
 }
 
