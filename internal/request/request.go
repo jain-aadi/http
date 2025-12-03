@@ -6,6 +6,13 @@ import (
 	"strings"
 )
 
+type parserState string
+
+const (
+	StateInit parserState = "init"
+	StateDone parserState = "done"
+)
+
 type RequestLine struct {
 	HttpVersion   string
 	RequestTarget string
@@ -14,17 +21,55 @@ type RequestLine struct {
 
 type Request struct {
 	RequestLine RequestLine
+	State       parserState
+}
+
+func (r *Request) parse(data []byte) (int, error) {
+	read := 0
+
+outer:
+	for {
+		switch r.State {
+
+		case StateInit:
+			rl, rest, err := ParseRequestLine(string(data[read:]))
+			if err != nil {
+				return 0, err
+			}
+			if len(rest) == 0 {
+				break outer
+			}
+
+			r.RequestLine = *rl
+			read += len([]byte(rest))
+			r.State = StateDone
+
+		case StateDone:
+			break outer
+		}
+	}
+
+	return read, nil
+}
+
+func (r *Request) isDone() bool {
+	return r.State == StateDone
+}
+
+func newRequest() *Request {
+	return &Request{
+		State: StateInit,
+	}
 }
 
 var ErrorInvalidRequestLine = fmt.Errorf("invalid request line")
-var ErrorIncompleteStartLine = fmt.Errorf("missing complete request line")
 
 var Seperator = "\r\n"
 
 func ParseRequestLine(line string) (*RequestLine, string, error) {
 	idx := strings.Index(line, Seperator)
 	if idx == -1 {
-		return nil, line, ErrorIncompleteStartLine
+		return nil, line, nil
 	}
 
 	startLine := line[:idx]
@@ -49,20 +94,29 @@ func ParseRequestLine(line string) (*RequestLine, string, error) {
 }
 
 func RequestFromReader(reader io.Reader) (*Request, error) {
-	data, err := io.ReadAll(reader)
-	if err != nil {
-		return nil, fmt.Errorf("unable to io.ReadAll: %w", err)
+	request := newRequest()
+
+	// a very long header or body will overflow this buffer
+	buf := make([]byte, 1024) // 1024 bcoz power of 2 looks good :)
+	bufIdx := 0
+
+	for !request.isDone() {
+		n, err := reader.Read(buf[bufIdx:]) // read into buf, n is number of bytes read
+		if err != nil {
+			return nil, fmt.Errorf("unable to read: %w", err)
+		}
+
+		bufIdx += n
+
+		readn, err := request.parse(buf[:bufIdx])
+		if err != nil {
+			return nil, err
+		}
+
+		copy(buf, buf[readn:bufIdx]) // copy unread data to beginning of buf
+		bufIdx -= readn
 	}
 
-	str := string(data)
-
-	rl, _, err := ParseRequestLine(str)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Request{
-		RequestLine: *rl,
-	}, err
+	return request, nil
 
 }
