@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bytes"
 	"fmt"
 	"http_server/internal/request"
 	"http_server/internal/response"
@@ -19,7 +18,7 @@ type HandlerError struct {
 	StatusCode response.StatusCode
 }
 
-type Handler func(w io.Writer, request *request.Request) *HandlerError
+type Handler func(w *response.Writer, request *request.Request)
 
 func runServer(s *Server, listener net.Listener) {
 	for {
@@ -39,33 +38,16 @@ func runServer(s *Server, listener net.Listener) {
 func runConnection(s *Server, conn io.ReadWriteCloser) {
 	defer conn.Close()
 
-	headers := response.GetDefaultHeaders(0)
+	responseWriter := response.NewWriter(conn)
 
 	r, err := request.RequestFromReader(conn)
 	if err != nil {
-		response.WriteStatusLine(conn, response.StatusBadRequest)
-		response.WriteHeaders(conn, headers)
+		responseWriter.WriteStatusLine(response.StatusBadRequest)
+		responseWriter.WriteHeaders(response.GetDefaultHeaders(0))
 		return
 	}
 
-	writer := bytes.NewBuffer([]byte{})
-	var body []byte = nil
-	var status response.StatusCode = response.StatusOK
-
-	handlerErr := s.handler(writer, r)
-	if handlerErr != nil {
-		status = handlerErr.StatusCode
-		body = []byte(handlerErr.Msg)
-	} else {
-		body = writer.Bytes()
-	}
-
-	headers.Replace("Content-Length", fmt.Sprintf("%d", len(body)))
-
-	response.WriteStatusLine(conn, status)
-	response.WriteHeaders(conn, headers)
-
-	conn.Write(body)
+	s.handler(responseWriter, r)
 }
 
 func Serve(port uint16, handler Handler) (*Server, error) {
