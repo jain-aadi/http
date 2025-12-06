@@ -19,7 +19,7 @@ func main() {
 		status := response.StatusOK
 		body := server.Respond200()
 
-		fmt.Println("DEBUG: Request received for path:", r.RequestLine.RequestTarget) // Add this line
+		fmt.Println("DEBUG: Request received for path:", r.RequestLine.RequestTarget)
 
 		switch r.RequestLine.RequestTarget {
 		case "/yourproblem":

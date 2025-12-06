@@ -18,7 +18,13 @@ type Handler func(w *response.Writer, request *request.Request)
 func runServer(s *Server, listener net.Listener) {
 	for {
 		conn, err := listener.Accept()
+		responseWriter := response.NewWriter(conn)
+
 		if err != nil {
+			fmt.Println("Error accepting connection:", err)
+			responseWriter.WriteStatusLine(response.StatusInternalServerError)
+			responseWriter.WriteHeaders(response.GetDefaultHeaders(0))
+			responseWriter.WriteBody(Respond500())
 			return
 		}
 
