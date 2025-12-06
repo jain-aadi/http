@@ -6,9 +6,6 @@ import (
 	"io"
 )
 
-type Response struct {
-}
-
 type StatusCode int
 
 const (

@@ -13,11 +13,6 @@ type Server struct {
 	handler Handler
 }
 
-type HandlerError struct {
-	Msg        string
-	StatusCode response.StatusCode
-}
-
 type Handler func(w *response.Writer, request *request.Request)
 
 func runServer(s *Server, listener net.Listener) {
@@ -44,6 +39,7 @@ func runConnection(s *Server, conn io.ReadWriteCloser) {
 	if err != nil {
 		responseWriter.WriteStatusLine(response.StatusBadRequest)
 		responseWriter.WriteHeaders(response.GetDefaultHeaders(0))
+		responseWriter.WriteBody(Respond400())
 		return
 	}
 
@@ -68,4 +64,25 @@ func Serve(port uint16, handler Handler) (*Server, error) {
 func (s *Server) Close() error {
 	s.closed = true
 	return nil
+}
+
+func Respond400() []byte {
+	return []byte(`<html>
+		<head><title>400 Bad Request</title></head>
+		<body><h1>400 Bad Request</h1><p>Your request could not be understood by the server due to malformed syntax.</p></body>
+		</html>`)
+}
+
+func Respond500() []byte {
+	return []byte(`<html>
+		<head><title>500 Internal Server Error</title></head>
+		<body><h1>500 Internal Server Error</h1><p>The server encountered an unexpected condition which prevented it from fulfilling the request.</p></body>
+		</html>`)
+}
+
+func Respond200() []byte {
+	return []byte(`<html>
+		<head><title>200 OK</title></head>
+		<body><h1>200 OK</h1><p>Your request was successful.</p></body>
+		</html>`)
 }

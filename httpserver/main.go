@@ -17,15 +17,18 @@ func main() {
 	server, err := server.Serve(port, func(w *response.Writer, r *request.Request) {
 		h := response.GetDefaultHeaders(0)
 		status := response.StatusOK
-		body := respond200()
+		body := server.Respond200()
 
-		if r.RequestLine.RequestTarget == "/yourproblem" {
+		fmt.Println("DEBUG: Request received for path:", r.RequestLine.RequestTarget) // Add this line
+
+		switch r.RequestLine.RequestTarget {
+		case "/yourproblem":
 			status = response.StatusBadRequest
-			body = respond400()
+			body = server.Respond400()
 
-		} else if r.RequestLine.RequestTarget == "/myproblem" {
+		case "/myproblem":
 			status = response.StatusInternalServerError
-			body = respond500()
+			body = server.Respond500()
 
 		}
 
@@ -50,25 +53,4 @@ func main() {
 
 	<-sigChan
 	fmt.Println("\nServer gracefully stopped.")
-}
-
-func respond400() []byte {
-	return []byte(`<html>
-		<head><title>400 Bad Request</title></head>
-		<body><h1>400 Bad Request</h1><p>Your request could not be understood by the server due to malformed syntax.</p></body>
-		</html>`)
-}
-
-func respond500() []byte {
-	return []byte(`<html>
-		<head><title>500 Internal Server Error</title></head>
-		<body><h1>500 Internal Server Error</h1><p>The server encountered an unexpected condition which prevented it from fulfilling the request.</p></body>
-		</html>`)
-}
-
-func respond200() []byte {
-	return []byte(`<html>
-		<head><title>200 OK</title></head>
-		<body><h1>200 OK</h1><p>Your request was successful.</p></body>
-		</html>`)
 }
