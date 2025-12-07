@@ -43,6 +43,7 @@ func runConnection(s *Server, conn io.ReadWriteCloser) {
 
 	r, err := request.RequestFromReader(conn)
 	if err != nil {
+		fmt.Println(err)
 		responseWriter.WriteStatusLine(response.StatusBadRequest)
 		responseWriter.WriteHeaders(response.GetDefaultHeaders(0))
 		responseWriter.WriteBody(Respond400())

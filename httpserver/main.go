@@ -6,8 +6,10 @@ import (
 	"http_server/internal/response"
 	"http_server/internal/server"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 )
 
@@ -19,16 +21,50 @@ func main() {
 		status := response.StatusOK
 		body := server.Respond200()
 
+		errFlag := false
+
 		fmt.Println("DEBUG: Request received for path:", r.RequestLine.RequestTarget)
 
 		switch r.RequestLine.RequestTarget {
 		case "/yourproblem":
 			status = response.StatusBadRequest
 			body = server.Respond400()
+			errFlag = true
 
 		case "/myproblem":
 			status = response.StatusInternalServerError
 			body = server.Respond500()
+			errFlag = true
+
+		}
+
+		if !errFlag && strings.HasPrefix(r.RequestLine.RequestTarget, "/httpbin/stream") {
+			target := r.RequestLine.RequestTarget
+
+			res, err := http.Get("https://httpbin.org/" + target[len("/httpbin/"):])
+			if err != nil {
+				status = response.StatusInternalServerError
+				body = server.Respond500()
+			} else {
+				w.WriteStatusLine(response.StatusOK)
+				h.Delete("Content-Length")
+				h.Replace("Content-Type", "text/plain")
+				h.Set("Transfer-Encoding", "chunked")
+
+				for {
+					data := make([]byte, 32)
+					n, err := res.Body.Read(data)
+					if err != nil {
+						break
+					}
+					w.WriteBody([]byte(fmt.Sprintf("%x\r\n", n)))
+					w.WriteBody(data[:n])
+					w.WriteBody([]byte("\r\n"))
+				}
+
+				w.WriteBody([]byte("0\r\n\r\n"))
+				return
+			}
 
 		}
 
