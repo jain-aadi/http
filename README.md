@@ -47,6 +47,8 @@ This project explores what usually stays hidden behind high-level web frameworks
 - What actually arrives over a TCP socket when a browser says “GET /”?
 - How does chunked transfer encoding behave under streaming conditions?
 - What does an HTTP server need to handle before frameworks take over?
+- What are different http protocols?
+- What is difference between TCP and UDP?
 
 It’s a learning-driven, low-level implementation for building real intuition about networking and protocols.
 
