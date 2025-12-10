@@ -52,8 +52,3 @@ It’s a learning-driven, low-level implementation for building real intuition a
 
 ---
 
-## Usage
-
-### Run the server
-```bash
-go run .
