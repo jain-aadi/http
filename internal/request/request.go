@@ -38,7 +38,8 @@ outer:
 		switch r.State {
 
 		case StateInit:
-			rl, rest, err := ParseRequestLine(string(data[read:]))
+			remaining := data[read:]
+			rl, rest, err := ParseRequestLine(string(remaining))
 			if err != nil {
 				return 0, err
 			}
@@ -47,7 +48,9 @@ outer:
 			}
 
 			r.RequestLine = *rl
-			read += len([]byte(rest))
+			// Advance over the request line, leaving the headers for the
+			// header parser. `rest` is the unconsumed portion of this read.
+			read += len(remaining) - len(rest)
 			r.State = StateHeaders
 
 		case StateDone:
@@ -123,6 +126,10 @@ func ParseRequestLine(line string) (*RequestLine, string, error) {
 	restOfMsg := line[idx+len(Seperator):]
 
 	lineParts := strings.Split(startLine, " ")
+	if len(lineParts) != 3 {
+		return nil, restOfMsg, ErrorInvalidRequestLine
+	}
+
 	httpParts := strings.Split(lineParts[2], "/")
 
 	// lineParts should be METHOD, PATH, HTTP protocol

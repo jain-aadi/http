@@ -7,16 +7,20 @@ import (
 	"http_server/internal/server"
 	"log"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
 )
 
-const port = 8000
+const (
+	port         = 8000
+	pprofAddress = "127.0.0.1:6060"
+)
 
 func main() {
-	server, err := server.Serve(port, func(w *response.Writer, r *request.Request) {
+	tcpServer, err := server.Serve(port, func(w *response.Writer, r *request.Request) {
 		h := response.GetDefaultHeaders(0)
 		status := response.StatusOK
 		body := server.Respond200()
@@ -81,7 +85,9 @@ func main() {
 		log.Fatalf("Error starting the server: %v", err)
 	}
 
-	defer server.Close()
+	startProfiler(tcpServer)
+
+	defer tcpServer.Close()
 	fmt.Println("Server started on port:", port)
 
 	sigChan := make(chan os.Signal, 1)

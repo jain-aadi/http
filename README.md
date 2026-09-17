@@ -38,6 +38,14 @@ The project also includes a reverse-proxy style endpoint that forwards requests 
   - Manual reading/parsing with `bufio.Reader`
   - Scratch implementation of my own reader and writer for custom usablity
 
+### Live Runtime Profiling
+- A loopback-only Go `pprof` sidecar runs at `http://127.0.0.1:6060/debug/pprof/`.
+- It is separate from the custom raw-TCP server, which continues serving requests on port `8000`.
+- The profiler is intended for local development and demos; it is not exposed to the network.
+- A live dashboard is available at `http://127.0.0.1:6060/debug/dashboard`. It charts request throughput, active connections, goroutines, average handler latency, heap allocation, garbage collection, and request failures.
+- Raw point-in-time metrics are also available as JSON at `http://127.0.0.1:6060/debug/metrics`.
+- The dashboard includes a bounded local load runner: choose up to 10,000 requests and 500 concurrent requests, then run the test directly from the page.
+
 ---
 
 ## Why This Project Exists
@@ -51,6 +59,42 @@ This project explores what usually stays hidden behind high-level web frameworks
 - What is difference between TCP and UDP?
 
 It’s a learning-driven, low-level implementation for building real intuition about networking and protocols.
+
+---
+
+## Load Demo with a Live Goroutine Graph
+
+Start the server:
+
+```bash
+go run ./httpserver
+```
+
+In a second terminal, start the interactive goroutine visualizer:
+
+```bash
+go tool pprof -http=:8081 http://127.0.0.1:6060/debug/pprof/goroutine
+```
+
+Open `http://127.0.0.1:6060/debug/dashboard` in a browser. It samples and charts the server every second. Keep the pprof window open as well; at `http://127.0.0.1:8081`, select **Graph** for the current goroutine call graph.
+
+In a third terminal running PowerShell 7, generate continuous concurrent traffic (stop with `Ctrl+C`):
+
+```bash
+while ($true) {
+  1..200 | ForEach-Object -Parallel {
+    Invoke-WebRequest http://127.0.0.1:8000/ -UseBasicParsing | Out-Null
+  } -ThrottleLimit 50
+}
+```
+
+For the recording, show the dashboard building a throughput line, then switch to pprof and refresh the graph while traffic is in flight. Increase the request count and throttle limit gradually to find a level your machine handles comfortably. This is a local illustrative load check—not a production capacity benchmark.
+
+If pprof reports that it cannot execute `dot`, install Graphviz and restart the terminal before re-running pprof:
+
+```bash
+winget install graphviz
+```
 
 ---
 
